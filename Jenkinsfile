@@ -3,7 +3,7 @@ pipeline {
     parameters {
         string(name: 'IMAGE_NAME', defaultValue: 'restaurant', description: 'Nom de l’image Docker')
         string(name: 'IMAGE_TAG', defaultValue: '1.0', description: 'Tag de version')
-        string(name: 'DOCKERHUB_ID', defaultValue: 'TON_ID_DOCKERHUB', description: 'Votre identifiant Docker Hub')
+        string(name: 'DOCKERHUB_ID', defaultValue: 'ahmadoungb', description: 'Votre identifiant Docker Hub')
     }
     stages {
         stage('Git Checkout') {
