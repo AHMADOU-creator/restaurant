@@ -14,7 +14,9 @@ pipeline {
         stage('Docker Build') {
             steps {
                 sh '''
-                    UNIQUE_TAG=${IMAGE_TAG}.${BUILD_NUMBER}-${GIT_COMMIT:0:7}
+                    # Version compatible bash pour éviter le Bad substitution
+                    COMMIT_SHORT=$(echo ${GIT_COMMIT} | cut -c1-7)
+                    UNIQUE_TAG="${IMAGE_TAG}.${BUILD_NUMBER}-${COMMIT_SHORT}"
                     echo "${UNIQUE_TAG}" > tag.txt
                     
                     cat > Dockerfile <<'EOF'
