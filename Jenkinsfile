@@ -14,7 +14,6 @@ pipeline {
         stage('Docker Build') {
             steps {
                 sh '''
-                    # Assurer la visibilité des variables
                     DH_ID="${DOCKERHUB_ID}"
                     IMG_NAME="${IMAGE_NAME}"
                     IMG_TAG="${IMAGE_TAG}"
@@ -23,12 +22,8 @@ pipeline {
                     UNIQUE_TAG="${IMG_TAG}.${BUILD_NUMBER}-${COMMIT_SHORT}"
                     echo "${UNIQUE_TAG}" > tag.txt
                     
-                    cat > Dockerfile <<'EOF'
-                    FROM nginx:1.27-alpine
-                    COPY . /usr/share/nginx/html/
-                    EXPOSE 80
-                    EOF
-                    printf '.git\\nDockerfile\\n' > .dockerignore
+                    printf "FROM nginx:1.27-alpine\\nCOPY . /usr/share/nginx/html/\\nEXPOSE 80\\n" > Dockerfile
+                    printf ".git\\nDockerfile\\n" > .dockerignore
                     
                     echo "==> Building ${DH_ID}/${IMG_NAME}:${UNIQUE_TAG}"
                     docker build --label org.opencontainers.image.revision=${GIT_COMMIT} \
