@@ -14,9 +14,13 @@ pipeline {
         stage('Docker Build') {
             steps {
                 sh '''
-                    # Version compatible bash pour éviter le Bad substitution
+                    # Assurer la visibilité des variables
+                    DH_ID="${DOCKERHUB_ID}"
+                    IMG_NAME="${IMAGE_NAME}"
+                    IMG_TAG="${IMAGE_TAG}"
+                    
                     COMMIT_SHORT=$(echo ${GIT_COMMIT} | cut -c1-7)
-                    UNIQUE_TAG="${IMAGE_TAG}.${BUILD_NUMBER}-${COMMIT_SHORT}"
+                    UNIQUE_TAG="${IMG_TAG}.${BUILD_NUMBER}-${COMMIT_SHORT}"
                     echo "${UNIQUE_TAG}" > tag.txt
                     
                     cat > Dockerfile <<'EOF'
@@ -26,21 +30,26 @@ pipeline {
                     EOF
                     printf '.git\\nDockerfile\\n' > .dockerignore
                     
+                    echo "==> Building ${DH_ID}/${IMG_NAME}:${UNIQUE_TAG}"
                     docker build --label org.opencontainers.image.revision=${GIT_COMMIT} \
-                                 -t ${DOCKERHUB_ID}/${IMAGE_NAME}:${UNIQUE_TAG} \
-                                 -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                                 -t ${DH_ID}/${IMG_NAME}:${UNIQUE_TAG} \
+                                 -t ${IMG_NAME}:${IMG_TAG} .
                 '''
             }
         }
         stage('Acceptance Test') {
             steps {
                 sh '''
+                    DH_ID="${DOCKERHUB_ID}"
+                    IMG_NAME="${IMAGE_NAME}"
                     UNIQUE_TAG=$(cat tag.txt)
-                    TEST=${IMAGE_NAME}-test
-                    IMAGE=${DOCKERHUB_ID}/${IMAGE_NAME}
+                    TEST=${IMG_NAME}-test
+                    IMAGE=${DH_ID}/${IMG_NAME}
                     
                     JENKINS_NET=$(docker inspect jenkins -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}')
                     docker rm -f ${TEST} 2>/dev/null || true
+                    
+                    echo "==> Running container: ${IMAGE}:${UNIQUE_TAG}"
                     docker run -d --name ${TEST} --network ${JENKINS_NET} ${IMAGE}:${UNIQUE_TAG}
                     
                     for i in $(seq 1 10); do curl -sf http://${TEST}/ >/dev/null && break; sleep 1; done
@@ -54,15 +63,17 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKERHUB_TOKEN', usernameVariable: 'DOCKERHUB_USER')]) {
                     sh '''
+                        DH_ID="${DOCKERHUB_ID}"
+                        IMG_NAME="${IMAGE_NAME}"
                         UNIQUE_TAG=$(cat tag.txt)
-                        IMAGE=${DOCKERHUB_ID}/${IMAGE_NAME}
+                        IMAGE=${DH_ID}/${IMG_NAME}
                         
                         echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USER}" --password-stdin
                         docker push ${IMAGE}:${UNIQUE_TAG}
                         docker tag ${IMAGE}:${UNIQUE_TAG} ${IMAGE}:latest
                         docker push ${IMAGE}:latest
                         docker logout
-                        echo "Image publiée avec succès : ${IMAGE}:${UNIQUE_TAG}"
+                        echo "✅ Image publiée avec succès : ${IMAGE}:${UNIQUE_TAG}"
                     '''
                 }
             }
